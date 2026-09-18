@@ -1,6 +1,6 @@
 ---
 name: "doc-sync"
-description: 'Sync or rebuild project docs from code. Invoke when API/core files change, user asks to ''sync docs'' or ''rebuild docs'', or initializing docs for a project. 中文觸發：同步文件、更新文件、重建文件、初始化文件。'
+description: 'Sync or rebuild a project doc set from code. Invoke when API/model/config files or the project directory structure change, or the user says: sync docs / update docs / 同步文件 / 更新文件 / rebuild docs / init docs / 重建文件 / 初始化文件 / setup project context / 建立專案脈絡. Skip for test-only, asset-only, vendor, or formatting-only changes.'
 ---
 
 # Doc Sync — Documentation Auto-Sync & Rebuild
@@ -13,6 +13,11 @@ Core philosophy: **write notes for the future** — record repeated emphasis, so
 ---
 
 ## Trigger Conditions
+
+> ⚠️ **這一節不會觸發這個技能。**
+> 模型每一輪只看得到 frontmatter 的 `description`；這一節要等技能被載入之後才讀得到。
+> 它的用途是**載入後的自我檢查**——發現其實只是 test-only 改動就退出，不要硬做。
+> 真正的觸發條件寫在 `description` 裡；改這一節不會改變觸發行為。
 
 **Invoke when:**
 
@@ -28,6 +33,23 @@ Core philosophy: **write notes for the future** — record repeated emphasis, so
 - Static asset changes (CSS, images, fonts)
 - Generated/vendor code changes
 - Comment-only or formatting-only changes
+
+---
+
+## Tool Naming (cross-platform)
+
+這份技能要能在多個 AI 工具裡跑，所以**不寫死工具名**。需要平台專屬的操作時用通用說法，
+執行的時候換成你手上那套：
+
+| 這裡的說法 | DSH | Claude Code / Trae |
+|---|---|---|
+| 提問工具 | `ask_user_question` | `AskUserQuestion` |
+| 局部替換工具 | `edit` | `Edit` / `SearchReplace` |
+| 子代理 | `subagent` | `Task` |
+| 專案指示檔 | `AGENTS.md` | `CLAUDE.md` |
+| 搜尋 / 列出檔案 | `grep` / `glob` | `Grep` / `Glob` |
+
+**改這份技能時也請維持這個規則**：寫「用你的局部替換工具」，不要寫「用 `edit`」。
 
 ---
 
@@ -183,14 +205,14 @@ Stores the user's design philosophy, architecture decisions, and documentation c
 Step 1: Scan the project
   - Glob all source files (respecting .gitignore)
   - Read package.json / requirements.txt / go.mod / Package.swift / etc.
-  - Read README.md / AGENTS.md if they exist
+  - Read README.md and the project instruction file (see Tool Naming) if they exist
   - Detect framework (Django apps, Next.js routes, Swift targets, etc.)
 
 Step 2: Detect module architecture
   - Run auto-detection (see Module Detection → Auto-Detection)
   - Determine framework type, module layout, boundary rules, significant file criteria
 
-Step 3: Ask the user (use ask_user_question)
+Step 3: Ask the user (use your question tool — see Tool Naming)
   - "What is the main purpose of this project?"
   - "What language should documentation be written in?"
   - "Any key design principles to document?"
@@ -249,7 +271,14 @@ A chronological, **append-only** log. Never auto-overwritten — only new entrie
 - <YYYY-MM-DD> <principle/decision> — <reason>
 
 ## 2. Solved Problems & Solutions
-- <YYYY-MM-DD> <problem> → <solution>
+
+<!-- 一條坑一個區塊。「當時以為」不可省 —— 那正是下一個人會誤判的方向。 -->
+### <YYYY-MM-DD> — <症狀的一句話>
+- **症狀**：<觀察到什麼>
+- **當時以為**：<一開始的判斷>　← 必填
+- **真正原因**：<實際上是什麼>
+- **怎麼驗證**：<具體指令或步驟，讓下一個人能自己重現這個判斷>
+- **學到什麼**：<可轉移的教訓，或指向哪份文件>
 
 ## 3. Cross-AI Consistency Rules
 - <YYYY-MM-DD> <rule>
@@ -258,6 +287,10 @@ A chronological, **append-only** log. Never auto-overwritten — only new entrie
 ### Rules
 
 - Append entries with today's date; never edit or remove existing entries
+- **同一條坑又踩到時，加一條新的**（append-only），在裡面寫「又踩了一次，這次的差別是…」
+  —— 不要改舊的那一條
+- **「當時以為」必填。** 只寫正確答案的版本對下一個人沒有用，因為他不會在那裡停下來
+- 超過約 30 條時拆成 `doc/notes/` 資料夾 ＋ 一份索引，`doc/notes.md` 保留為索引
 - `doc/notes.md` is listed in Project Context §8 Manual Docs — never overwritten by Rebuild
 - Follow the documentation language defined in Project Context §5 (template above is bilingual)
 - Verify existing notes are still accurate when relevant code changes
@@ -381,7 +414,7 @@ Step 4: Generate Doc Set (with batching — see Batching Strategy)
      - Output data structures
   d) doc/README.md
      - Doc index with links to all module docs
-  e) Update AGENTS.md / README.md file structure section
+  e) Update the project instruction file / README.md file structure section
 
 Step 5: Update Project Context
   - Refresh Module Inventory table
@@ -439,7 +472,7 @@ Step 4: Generate Diff Report
   [architecture.md] New module `billing/` not in diagram → add
 
 Step 5: Fix Each Difference
-  - Use edit to patch only the diff parts
+  - Use your local-edit tool (see Tool Naming) to patch only the diff parts
   - Re-confirm line numbers with Grep before writing
   - Follow existing doc format
   - If new module added: create module doc + update architecture + update context inventory
@@ -517,6 +550,15 @@ For each doc that was created or modified:
 
 5. Manual Docs Check
    - Confirm no file in §8 Manual Docs list was overwritten
+
+6. Privacy Check (REQUIRED whenever doc/ is committed)
+   - No real username or absolute home path in any doc
+     (patterns: C:\Users\<name>, /Users/<name>, /home/<name>)
+   - No company / internal project / client names — use placeholders like <Project A>
+   - No UI screenshots: the sidebar shows workspace names AND full paths
+   - .gitignore does NOT protect against drag-and-drop upload in the web UI
+   - Scan only what would actually be committed:
+     `git ls-files -o --exclude-standard`  (NOT `git status` — it lists ignored files too)
 ```
 
 ### Output Format
