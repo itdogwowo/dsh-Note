@@ -1,0 +1,17 @@
+{
+  "$comment": [
+    "每台機器的本機覆寫。**這個檔案不進版控**（見 .gitignore）。",
+    "",
+    "用途：repo 只存可攜 URL，但開發機上的插件通常是 link: 到工作目錄，",
+    "而那個路徑每台機器都不一樣。把本機路徑放這裡，apply 時就會用它取代 URL。",
+    "",
+    "複製這個檔案成 machines/<hostname>.json 再改。",
+    "hostname 用 `hostname` 指令的輸出（小寫）。"
+  ],
+  "host": "example",
+  "links": {
+    "dsh-power": "<你本機 dsh-power 工作目錄的絕對路徑>",
+    "dsh-tavern": "<你本機 dsh-tavern 工作目錄的絕對路徑>"
+  },
+  "notes": "links 裡沒有列到的插件，apply 時會用 sync/plugins/dependencies.json 的 URL 安裝。"
+}

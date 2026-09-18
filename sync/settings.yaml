@@ -1,0 +1,32 @@
+ui-onboarding:
+  welcomeNoticeVersion: 2026-08-13.1
+agent-default-model:
+  provider: deepseek-official
+  model: deepseek-flash
+  reasoningEffort: max
+ui-theme:
+  preference: light
+pet:
+  visible: true
+  size: 160
+  right: 106
+  bottom: 696
+  petId: whale-girl
+skin-custom-theme:
+  applied: false
+tavern:
+  enabled: false
+  temperature: 0.8
+  applyTemperature: true
+  maxTokens: 0
+  stop: []
+  reasoningEffort: ""
+  characters: []
+  activeCharacterId: ""
+  systemPrompt: ""
+  promptPlacement: after
+  styleRules: |-
+    一律用中文回覆對話。
+    以角色第一人稱演出，不要代替使用者行動或替他決定。
+    不要輸出「（以下為回覆）」之類的說明文字。
+  replyLength: 每次回覆 200–500 字，節奏放慢，多描述場景與語氣。

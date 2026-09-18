@@ -1,0 +1,24 @@
+{
+  "$comment": [
+    "DSH 插件來源清單 —— 這份檔案是跨機器同步的關鍵。",
+    "",
+    "設計原則：**只存可攜的 URL 或 npm spec，不存任何機器路徑。**",
+    "原本 profile 裡的 `link:` 指向家目錄底下的工作目錄、`file:` 指向家目錄底下的",
+    "tarball，那些路徑在另一台機器上一定是錯的，所以不進這個 repo。",
+    "",
+    "每台機器的本機覆寫放在 machines/<host>.json（已 gitignore）。"
+  ],
+  "dependencies": {
+    "@linxin666/dsh-web-all": "0.3.23",
+    "@liustack/modsearch": "5.10.3",
+    "dsh-approval-gate": "0.5.0",
+    "dsh-ego-browser": "https://github.com/Fisfzy/dsh-ego-browser",
+    "dsh-power": "https://github.com/itdogwowo/dsh-power",
+    "dsh-tavern": "https://github.com/itdogwowo/dsh-tavern/archive/refs/heads/main.tar.gz",
+    "dsh-worktable": "https://github.com/Aisland-SJL/dsh-worktable/releases/latest/download/dsh-worktable.tgz"
+  },
+  "$removed": {
+    "$comment": "曾在 plugins-src/ 留下 tarball 但沒有列在 profile 依賴裡，記錄來源以免忘記。",
+    "dsh-plugin-whale-fenggu": "https://github.com/Mungbean-Cake/dsh-plugin-whale-fenggu"
+  }
+}

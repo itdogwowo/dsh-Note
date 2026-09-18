@@ -1,0 +1,17 @@
+{
+  "$comment": [
+    "profile 的 dsh.profile.bundles 清單 —— **順序有意義**，DSH 依序組出插件樹。",
+    "對應 ~/.dsh/profiles/web/package.json 的 dsh.profile.bundles。"
+  ],
+  "bundles": [
+    "@deepseek-ai/dsh-base",
+    "@deepseek-ai/dsh-web-app",
+    "dsh-worktable",
+    "@liustack/modsearch",
+    "dsh-approval-gate",
+    "dsh-ego-browser",
+    "@linxin666/dsh-web-all",
+    "dsh-tavern",
+    "dsh-power"
+  ]
+}

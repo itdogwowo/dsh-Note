@@ -1,0 +1,23 @@
+# 絕對不同步的東西
+
+# 憑證 —— 永遠不進版控
+.credentials.yaml
+.anonymous-user-id
+
+# 每台機器自己的解析結果（repo 只存可攜 URL，這裡存本機的 link:/file: 路徑）
+# 範例格式見 machines/example.json
+machines/*.json
+!machines/example.json
+
+# 匯出／套用時的暫存與備份
+.dsh-note-backup/
+*.tmp
+
+# 編輯器／系統
+.vscode/*
+!.vscode/settings.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
