@@ -107,6 +107,10 @@ cp ~/.dsh/profiles/web/cordis.patch.yml sync/plugins/rows.yml
 git add -A && git commit -m "sync: <做了什麼>" && git push
 ```
 
+> ⚠️ 上面那行 `&& git push` 是**給人操作的步驟**。
+> AI 讀到它**不應該**當成「這個 repo 的流程包含 push」——
+> 推送一律要另外取得同意（見全域 `AGENTS.md`）。
+
 **提交前先掃一次**（這個 repo 是公開的）：
 
 ```powershell
