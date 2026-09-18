@@ -25,6 +25,23 @@
 > 子系統文件是**活文件**（錯了就改）；`pitfalls.md` 是**append-only**
 > （每條是歷史事件，後來的理解可以補充但不覆蓋原症狀）。
 
+## 維護筆記的技能
+
+`.dsh/skills/note-sync/` 是一個**專案技能**——在這個 repo 裡工作時，
+DSH 會從 `<專案>/.dsh/skills/` 掃到它。說「記到 notes」「這個坑記一下」「更新筆記」
+就會載入。
+
+它做兩件事：
+
+- **記錄踩坑** → append 進 `notes/pitfalls.md`（有日期，格式固定）
+- **更新子系統文件** → 改寫 `notes/skills.md` 這類活文件
+
+**為什麼放 repo 裡而不是 `~/.dsh/skills/`**：跟著 repo 走、會被同步，
+而且技能裡不需要寫死任何路徑（`~/.dsh/skills/` 是使用者層，跨機器要另外同步）。
+
+> 代價：只有在 `dsh-Note` 這個目錄裡工作時才叫得到。
+> 想在其他 repo 隨手記的話，把整個資料夾複製到 `~/.dsh/skills/`——但那就變成兩份副本了。
+
 ---
 
 ## 核心設計：只存 URL，不存路徑
@@ -48,7 +65,8 @@ DSH 的 profile 依賴有四種形狀，其中兩種**機器專屬**：
 
 ```
 dsh-Note/
-├── notes/                 經驗與技巧（見上面的索引）
+├── notes/                   經驗與技巧（見上面的索引）
+├── .dsh/skills/note-sync/   維護 notes/ 的技能（見下）
 ├── sync/
 │   ├── skills/            ← ~/.dsh/skills/ 的鏡像
 │   ├── settings.yaml      ← ~/.dsh/settings.yaml
