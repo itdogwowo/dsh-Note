@@ -4,8 +4,26 @@
 
 兩件事放在一起：
 
-1. **`NOTES.md`** — 實際上被絆到過的經驗與小技巧（不是官方文件轉抄）
+1. **`notes/`** — 實際上被絆到過的經驗與小技巧（不是官方文件轉抄），按子系統分類
 2. **`sync/`** — 讓另一台電腦的 DSH 變成同一副樣子的可攜內容
+
+## 筆記
+
+從 [`notes/README.md`](notes/README.md) 開始（索引 ＋ 寫作慣例）。
+
+| 檔案 | 範圍 |
+|---|---|
+| [`notes/skills.md`](notes/skills.md) | 技能系統：格式、目錄、**觸發原理**、開關、兩個入口 |
+| [`notes/instructions.md`](notes/instructions.md) | `AGENTS.md` / 全域指示 |
+| [`notes/plugins.md`](notes/plugins.md) | 插件、profile、兩層啟停、怎麼判斷有沒有生效 |
+| [`notes/ui.md`](notes/ui.md) | GUI：輸入框的 `/` 與 `@`、側邊欄、工具列 |
+| [`notes/sync.md`](notes/sync.md) | 跨機器同步：什麼能同步、只存 URL 的鐵則 |
+| [`notes/privacy.md`](notes/privacy.md) | 公開 repo 的隱私紅線 |
+| [`notes/pitfalls.md`](notes/pitfalls.md) | **踩過的坑**，每條有日期（append-only） |
+| [`notes/open.md`](notes/open.md) | 還沒解的問題、想做的事 |
+
+> 子系統文件是**活文件**（錯了就改）；`pitfalls.md` 是**append-only**
+> （每條是歷史事件，後來的理解可以補充但不覆蓋原症狀）。
 
 ---
 
@@ -23,11 +41,14 @@ DSH 的 profile 依賴有四種形狀，其中兩種**機器專屬**：
 所以這個 repo 裡**沒有任何一個絕對路徑**。每台機器自己的 `link:` 覆寫放
 `machines/<hostname>.json`，那個檔案**已 gitignore**，不會公開。
 
+> 用 `archive/refs/heads/main.tar.gz` 而不是 `archive/<SHA>.tar.gz`：
+> SHA 會隨歷史重寫而死，實際踩過。
+
 ## 目錄
 
 ```
 dsh-Note/
-├── NOTES.md               經驗與技巧（主要內容）
+├── notes/                 經驗與技巧（見上面的索引）
 ├── sync/
 │   ├── skills/            ← ~/.dsh/skills/ 的鏡像
 │   ├── settings.yaml      ← ~/.dsh/settings.yaml
@@ -57,6 +78,8 @@ cd dsh-Note
 > 本機開發的插件（`link:` 到工作目錄）不要從 URL 裝：
 > 複製 `machines/example.json` 成 `machines/<hostname>.json`，把本機路徑填進去。
 
+細節見 [`notes/sync.md`](notes/sync.md)。
+
 ## 同步回去（這台 → repo）
 
 ```sh
@@ -69,7 +92,7 @@ git add -A && git commit -m "sync: <做了什麼>" && git push
 **提交前先掃一次**（這個 repo 是公開的）：
 
 ```powershell
-# 只掃真的會被 commit 的檔案
+# 只掃真的會被 commit 的檔案（不要用 git status，它會把 gitignore 的也算進來）
 git ls-files -o --exclude-standard | ForEach-Object {
   Select-String -Path $_ -Pattern 'C:\\Users\\[A-Za-z0-9]|/Users/[A-Za-z0-9]|/home/[A-Za-z0-9]'
 }
@@ -80,9 +103,9 @@ git ls-files -o --exclude-standard | ForEach-Object {
 | 不同步 | 為什麼 |
 |---|---|
 | `.credentials.yaml` | 憑證 |
-| `sessions/`（149 MB） | 對話紀錄，體積＋隱私 |
+| `sessions/` | 上百 MB，體積＋隱私 |
 | `attachments/`／`storages/` | 同上 |
-| `profiles/*/node_modules`（449 MB） | 重裝就好 |
+| `profiles/*/node_modules` | 重裝就好 |
 | `taverns.json` | 存的是絕對路徑 |
 | `dsh-web.log` | 每次啟動的埠與 token 都不同 |
 
@@ -97,9 +120,11 @@ git ls-files -o --exclude-standard | ForEach-Object {
 - 不放截圖（畫面裡的側邊欄有工作區名稱與完整路徑）
 
 而且要知道：**`force push` 不會刪掉 GitHub 上的舊 commit**——
-只要記得 SHA 就還讀得出來。詳見 `NOTES.md` §5。
+只要記得 SHA 就還讀得出來。詳見 [`notes/privacy.md`](notes/privacy.md)。
 
 ## 授權
+
+`notes/` 與 `sync/plugins/` 的內容是這個 repo 自己的。
 
 `sync/skills/` 底下是第三方技能，各自帶自己的 LICENSE：
 
