@@ -1,6 +1,6 @@
 ---
 name: note-sync
-description: '維護 dsh-Note 的 notes/。當使用者說「記到 notes」「記下來」「更新筆記」「這個坑記一下」「take a note」，或剛解決完一個不明顯的問題時載入。兩種動作：把踩到的坑 append 進 pitfalls.md，或更新對應的子系統文件。'
+description: '維護 dsh-Note 的 notes/。當使用者說「記到 notes」「記下來」「更新筆記」「這個坑記一下」「take a note」，或剛解決完一個不明顯的問題時載入。兩種動作：把踩到的坑 append 進 pitfalls.md，或更新對應的子系統文件。 Maintain this repository notes/: append a dated pitfall entry to pitfalls.md, or rewrite the matching subsystem document. Trigger on "take a note", "log this pitfall", or "update the notes".'
 whenToUse: '要記錄一個剛踩到的坑、要更新某份筆記的內容、或要整理 notes/ 的時候。'
 ---
 

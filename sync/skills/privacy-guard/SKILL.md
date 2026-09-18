@@ -1,6 +1,6 @@
 ---
 name: privacy-guard
-description: '修改或建立任何檔案、寫文件、舉例、附截圖之前載入。公開 repo 的個資紅線：不讓真實使用者名稱、本機絕對路徑、公司／內部專案名進入會被 commit 的內容。'
+description: '修改或建立任何檔案、寫文件、舉例、附截圖之前載入。公開 repo 的個資紅線：不讓真實使用者名稱、本機絕對路徑、公司／內部專案名進入會被 commit 的內容。 Load before writing or editing any file, doc, example, or screenshot: keep real usernames, absolute home paths, and company or internal project names out of anything that can be committed.'
 whenToUse: '要寫入或編輯任何檔案時；要把路徑、帳號、專案名寫進文件或程式碼時；要附圖或截圖時；要說明過去發生過的洩漏時。'
 ---
 
