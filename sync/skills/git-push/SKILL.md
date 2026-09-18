@@ -6,11 +6,11 @@ whenToUse: '使用者要提交、要推送、或要 commit 之後推上去的時
 
 # Git Push — 準備、一次同意、提交並推送
 
-commit 的**格式**細節見 `git-commit` 技能（conventional commits、type 表、breaking change）。
-這份技能管的是**流程**：偵測工具、挑檔案、擬訊息、**取得同意**、一次做完。
+這份技能是**自足的**：偵測工具、挑檔案、擬訊息、取得同意、commit 與推送，
+全部都在這裡，**不需要其他技能配合**。
 
-> 兩個技能不衝突：`git-commit` 提供格式，這份管流程與同意。
-> 但如果只載入了其中一個，這份是自足的——它不缺任何必要步驟。
+> 為什麼要自足：技能是**條件載入**的，你沒辦法保證另一個技能也被載入。
+> 任何「詳見某技能」的引用在對方沒被載入時就是斷的。
 
 ---
 
@@ -68,12 +68,28 @@ git --version
 **不要硬推。** 改成：把 commit 做好，然後**產出給他自己操作的步驟**。
 
 > **GUI 工具通常有自己的 git，而憑證綁在那個 GUI 的環境裡。**
-> 用它的絕對路徑也許跑得動，但 **push 失敗於憑證時不要反覆重試**：
-> `SEC_E_NO_CREDENTIALS`、`could not read Username` 這類錯誤，
-> 換 TLS 後端或換指令只會換一個症狀。
-> 正確做法：**停下來，請使用者開他的 GUI 按推送**——那裡有憑證。
+> 用它的絕對路徑跑得動（實測：SourceTree 的 `git_local\cmd\git.exe` 推得上去）。
+> 提醒使用者：GUI 可能還沒看到新的 commit，要**重新整理**。
+
+### ⚠️ 憑證錯誤要先分辨是哪一種
+
+同樣是 `SEC_E_NO_CREDENTIALS`、`could not read Username`，有**兩種完全不同的原因**：
+
+| 原因 | 特徵 | 怎麼辦 |
+|---|---|---|
+| **執行環境擋住** | 錯誤裡有**權限／沙箱**字眼，例如憑證 helper 是 shell script、執行時噴 `CreateFileMapping … Win32 error 5` | **這不是憑證問題。** 放寬權限重試**一次**通常就會成功 |
+| **真的沒有憑證** | 沒有任何權限錯誤，就是問不到帳密 | **停下來**，請使用者開他的 GUI 按推送 |
+
+**分辨方法**：錯誤訊息裡有沒有**權限／沙箱**的字眼。
+有 → 先放寬權限試一次；沒有 → 直接轉手動。
+
+> ❌ **不要做**：換 `http.sslBackend=openssl`（只會換一個症狀）、
+> 反覆重試同一個指令、自己 `git config` 塞帳密。
 >
-> 提醒他：GUI 可能還沒看到新的 commit，要**重新整理**。
+> **實測過的反例**：某個環境裡 `schannel: AcquireCredentialsHandle failed:
+> SEC_E_NO_CREDENTIALS` 看起來完全像憑證過期，其實是執行環境擋住了憑證存放區
+> ——**放寬權限之後，同一個指令直接成功。**
+> 如果當時照「憑證問題就轉手動」處理，就會白白放棄一個做得到的操作。
 
 ---
 
@@ -114,9 +130,47 @@ git ls-files -o --exclude-standard \
 - 訊息裡**不要**寫出敏感字串（真實路徑、公司名、客戶名）
 - 有 body 的話寫「為什麼」，不要重複 diff 說了什麼
 
-格式與 type 表見 `git-commit`。
+格式與 type 表見下面的「commit 訊息格式」。
 
 然後寫出 `.git/DSH-PENDING/`（見下一節）。
+
+---
+
+## commit 訊息格式
+
+Conventional Commits：
+
+```
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+| type | 用途 |
+|---|---|
+| `feat` | 新功能 |
+| `fix` | 修 bug |
+| `docs` | 只動文件 |
+| `style` | 格式（不影響邏輯） |
+| `refactor` | 重構（不是 feat 也不是 fix） |
+| `perf` | 效能 |
+| `test` | 測試 |
+| `build` | 建置系統／依賴 |
+| `ci` | CI／設定 |
+| `chore` | 雜項維護 |
+| `revert` | 回退 |
+
+**破壞性變更**：type/scope 後面加 `!`，或在 footer 寫 `BREAKING CHANGE:`。
+
+### 安全規則
+
+- **NEVER** 改 git config
+- **NEVER** 執行破壞性指令（`--force`、hard reset）除非使用者明確要求
+- **NEVER** 跳過 hooks（`--no-verify`）除非使用者要求
+- **NEVER** force push 到 main／master
+- commit 因 hook 失敗時，**修好後做一個新的 commit**，不要 amend
 
 ---
 
