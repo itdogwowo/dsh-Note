@@ -105,3 +105,70 @@ DSH 有官方接縫可以攔：
 - 有些插件會自己開一個 debug 全域（例如 `window.__dshXxx`）回報 build 與 mount 狀態
 
 寫前端插件時**務必**掛一個，否則使用者只會看到空白，沒有任何線索。
+
+---
+
+## Agent 預設（模式）
+
+> 2026-10-14 實查 `~/.dsh/.agent-presets/` 與 `dsh-tavern` 的原始碼之後寫成。
+
+### 它其實是什麼
+
+**模式 ＝ 一個 preset 目錄 ＋ 一個 agent 面插件。**
+
+```
+~/.dsh/.agent-presets/<模式名>/
+├── preset.yml          顯示用：name / description / order
+├── agent.cordis.yml    ★ 唯一決定「這個模式的 session 長什麼樣」
+└── lib/agent.js        agent 面模組（由上面那一列指定路徑）
+```
+
+`preset.yml`：
+
+```yaml
+name: 嘉立創模式
+description: 顯示在模式選擇器上的說明
+order: 800
+```
+
+`agent.cordis.yml`：一個 Cordis 列，指向 JS 模組的**絕對路徑**（所以機器專屬）：
+
+```yaml
+- id: <唯一 id>
+  name: 'C:\...\lib\agent.js'
+```
+
+### agent 面模組的 API
+
+| 能力 | 呼叫 |
+|---|---|
+| plugin 身分 | `export const name = '...'` |
+| 宣告依賴 | `export const inject = ['systemPrompt']` |
+| plugin 本體 | `export function apply(ctx) { … }` |
+| 註冊與清理 | `ctx.effect(fn, '標籤')` |
+| **系統提示 section** | `ctx.systemPrompt.section({ name, order, text })` |
+| 動態變數 | `ctx.systemPrompt.variable(名稱, fn)`；section 內寫 `{{名稱}}` |
+| 遮蔽 runtime context | `ctx.systemPrompt.suppressRuntimeContext()` |
+| **每輪前置鉤** | `ctx.on('agent/pre-step', async (payload, next) => { const d = await next(); …; return d })` |
+| 另一個鉤 | `ctx.on('agent/request', …)` |
+| 限制工具 | `ctx.tools.restrict({ deny: [...] })`（要先 `ctx.inject(['tools'], …)`）|
+
+### 三個關鍵事實
+
+1. **`complete: true` 會讓系統提示「只剩」那個 section** —— harness 身分、工具說明、
+   部署 persona **全部消失**。酒館模式靠它把角色卡變成整個系統提示。
+   **要保留一般能力就絕對不要用。**
+2. **同一個 scope 只能有一個 `complete: true`**，多掛一個會讓系統提示組裝**直接失敗**。
+   （沒有用 `complete` 的 section 是安全的疊加。）
+3. **`agent/pre-step` 比系統提示組裝更早、而且在同一個回合內**
+   （順序：`agent/pre-step` → `agent/request` → 送出）。
+   所以「掃這一輪的訊息，影響**同一輪**的提示」是做得到的 ——
+   做法是把掃到的文字存起來，讓 section 的動態變數去讀。
+
+### 邊界
+
+- **路徑是機器專屬的絕對路徑**，preset **不可攜**（見 `sync.md`）。
+- 新增 preset 後**模式選擇器不一定立刻更新**，重新整理或重啟最保險。
+- 寫模組時**不要在 template literal 裡用反引號** —— 見 `pitfalls.md`。
+- `order` 目前只查證得到一個合法值（`0`，酒館用的 persona 前綴位置），
+  其餘列舉值查不到。**不確定就不要亂填。**
