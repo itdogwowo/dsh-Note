@@ -357,3 +357,44 @@ fatal: could not read Username for 'https://github.com'
 - **「逃逸字元有沒有原樣寫進檔案」本身要驗證**，不能假設——尤其是經過工具鏈傳遞的字串。
 - 這類錯誤**用眼睛看不出來**（檔案裡的文字完全正常），只有真的解析它才會現形。
   **寫完就跑一次語法檢查，成本幾秒，省下一次整批重工。**
+
+---
+
+## 2026-10-14 — 看到一個目錄長得像設定，就以為系統會讀它
+
+**症狀**：要新增一個 Agent 模式，我照著 `~/.dsh/.agent-presets/dsh-tavern/` 的結構
+（`preset.yml` + `agent.cordis.yml`）建了 `~/.dsh/.agent-presets/jlcpcb/`，
+語法全部驗證通過。**但模式選擇器裡什麼都沒出現。**
+
+**當時以為**：那個目錄就是註冊機制——放進去就會被掃到。
+理由看起來很充分：`dsh-tavern` 就長那樣，而且它真的出現在模式選擇器裡。
+
+**真正原因**：**倒果為因。** 官方 README 原句：
+
+> 註冊表**不掃描目錄**，也不接受 preset 路徑。
+
+`~/.dsh/.agent-presets/dsh-tavern/` 是 **`dsh-tavern` 這個插件自己的資料目錄**
+（它的 `agent.cordis.yml` 裡就寫著 `generated-by: dsh-tavern`），
+真正的註冊在**它被安裝成 profile bundle** 那件事上（見 `profiles/web/package.json`）。
+
+正確做法是在 profile 插一列 `@deepseek-ai/dsh-agent-preset`：
+
+    - id: preset-<loader 位址>
+      name: '@deepseek-ai/dsh-agent-preset'
+      config: { id: <識別符>, plugins: [...] }
+
+**怎麼驗證**：**先讀官方 README，再從範例回推機制。**
+`dsh-agent-preset-registry` 與 `dsh-agent-preset` 的 `README.zh.md` 有完整規格，
+就在 npx 快取裡（路徑可由 `dsh-web.log` 的堆疊訊息回推）：
+
+    %LOCALAPPDATA%\npm-cache\_npx\<hash>\node_modules\@deepseek-ai\
+
+**學到什麼**：
+
+- **「有個目錄長得像設定」不等於「系統會讀那個目錄」。** 尤其當那個目錄是
+  **某個插件產生的**時候——它可能是別人的私有資料，只是名字取得很像官方慣例。
+- **從範例回推機制很容易倒果為因**：範例只告訴你「結果長什麼樣」，
+  不告訴你「是什麼讓它生效」。**機制的權威來源是官方文件，不是範例。**
+- 這次的代價是：**錯誤的機制已經寫進 `plugins.md` 並推上公開 repo**，
+  才在實測時發現。→ 所以「先查證再寫文件」不是龜毛，
+  **寫錯的文件會比沒寫更糟**（下一個人會照著做）。

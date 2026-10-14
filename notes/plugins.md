@@ -110,33 +110,41 @@ DSH 有官方接縫可以攔：
 
 ## Agent 預設（模式）
 
-> 2026-10-14 實查 `~/.dsh/.agent-presets/` 與 `dsh-tavern` 的原始碼之後寫成。
+> 2026-10-14 實查 `@deepseek-ai/dsh-agent-preset-registry` 與 `@deepseek-ai/dsh-agent-preset`
+> 的**官方 README** 之後寫成。
+> ⚠️ **這一節的第一版是錯的**（以為目錄會被掃描），錯在哪見 `pitfalls.md`。
 
 ### 它其實是什麼
 
-**模式 ＝ 一個 preset 目錄 ＋ 一個 agent 面插件。**
+**模式 ＝ profile 裡的一列 `@deepseek-ai/dsh-agent-preset`。**
 
-```
-~/.dsh/.agent-presets/<模式名>/
-├── preset.yml          顯示用：name / description / order
-├── agent.cordis.yml    ★ 唯一決定「這個模式的 session 長什麼樣」
-└── lib/agent.js        agent 面模組（由上面那一列指定路徑）
-```
+> 官方 README 原句：**「註冊表不掃描目錄，也不接受 preset 路徑。」**
 
-`preset.yml`：
+`~/.dsh/.agent-presets/` **不是**註冊機制——那只是 `dsh-tavern` 這個插件**自己的資料目錄**
+（它的 `agent.cordis.yml` 裡寫著 `generated-by: dsh-tavern`）。
+看到一個目錄長得像設定，不代表系統會讀它。
 
-```yaml
-name: 嘉立創模式
-description: 顯示在模式選擇器上的說明
-order: 800
-```
-
-`agent.cordis.yml`：一個 Cordis 列，指向 JS 模組的**絕對路徑**（所以機器專屬）：
+宣告寫在 profile 的 `cordis.patch.yml`
+（**使用者層是純 YAML 列表**；bundle 層才用 `- insert:` 形式）：
 
 ```yaml
-- id: <唯一 id>
-  name: 'C:\...\lib\agent.js'
+- id: preset-<loader 位址>
+  name: '@deepseek-ai/dsh-agent-preset'
+  config:
+    id: <穩定的 preset 識別符>      # 必填，session 存的就是這個
+    plugins: []                    # 必填，子插件行列表
+    name: <展示名稱>                # 選填
+    description: <展示說明>         # 選填
+    order: <列表排序>               # 選填
 ```
+
+`plugins` 裡的每一項就是**普通插件列**（`id` + `name`，`name` 指向一個 JS 模組）。
+模式要掛的 agent 面模組就放在那裡。
+
+- **內建模式**（standard／ptc／minimal／cordis）的定義來自 `dsh-web-app` bundle
+- **新增或覆蓋 preset 都是 bundle 補丁**——官方指定用 `plugin_manager` 安裝，
+  或由**創造模式**在對話中編寫
+- 註冊表**不寫入任何宣告**：沒有介面接受 YAML 寫回
 
 ### agent 面模組的 API
 
@@ -170,5 +178,10 @@ order: 800
 - **路徑是機器專屬的絕對路徑**，preset **不可攜**（見 `sync.md`）。
 - 新增 preset 後**模式選擇器不一定立刻更新**，重新整理或重啟最保險。
 - 寫模組時**不要在 template literal 裡用反引號** —— 見 `pitfalls.md`。
-- `order` 目前只查證得到一個合法值（`0`，酒館用的 persona 前綴位置），
-  其餘列舉值查不到。**不確定就不要亂填。**
+- ⚠️ **有兩個不同的 `order`，不要混用**：
+  - preset `config.order` → 模式在**列表裡的排序**（官方 README 有列，選填）
+  - `ctx.systemPrompt.section({ order })` → 提示**片段在系統提示裡的排序**。
+    這個只查證得到一個合法值（`0`，酒館用的 persona 前綴位置），其餘列舉值查不到。
+- 讀官方 README 的位置在 npx 快取：
+  `%LOCALAPPDATA%\npm-cache\_npx\<hash>\node_modules\@deepseek-ai\`
+  （`<hash>` 每次更新可能不同；可用 `dsh-web.log` 回推）
