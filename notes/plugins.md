@@ -2,8 +2,26 @@
 
 ## profile 的結構
 
+**一台機器上可以同時有多個 profile，互不相干**（各有自己的 `package.json`
+與 `cordis.patch.yml`）。實際上會遇到兩個名字：
+
+| profile | 誰在跑它 |
+|---|---|
+| `desktop` | **GUI（Electron 應用程式）**——CLI 不能單獨啟動它 |
+| `web` | `dsh web`（瀏覽器介面） |
+
+> ⚠️ **`dsh web` 是 `--profile web` 的寫死別名。**
+> 所以 `dsh web --profile desktop` 的那個 `--profile` 會被忽略
+> （或報 `select a profile only once`）——你以為在測 desktop，其實在測 web。
+>
+> 反過來，`desktop` 用 CLI 起會**直接拒絕**：
+> `error: profile "desktop" is managed exclusively by the Electron application`。
+>
+> **改設定之前，先確認 GUI 跑的是哪一個**（見 [`pitfalls.md`](pitfalls.md)
+> 「你改的那個 profile，不是 GUI 正在跑的那個」）。
+
 ```
-~/.dsh/profiles/web/
+~/.dsh/profiles/<profile>/
 ├── package.json      dependencies ＋ dsh.profile.bundles（**順序有意義**）
 ├── cordis.yml        profile 根，內容是空的 `[]`
 │                     註解明說：「改 cordis.patch.yml，不要改這個檔案」
@@ -22,12 +40,30 @@
    —— 那就是「預設關閉、要你另外打開」的 **opt-in 插件**
 
 2. **使用者層**（你寫的）
-   `~/.dsh/profiles/web/cordis.patch.yml`
+   `~/.dsh/profiles/<profile>/cordis.patch.yml`
 
 ```yaml
 # 使用者層覆寫會蓋過 bundle 層
 [ { id: web-ui-skill-explorer, name: "@linxin666/dsh-web-all/skill-explorer", disabled: false } ]
 ```
+
+⚠️ **純列表的每一列是「依 id 覆寫既有列」，不是「新增」。**
+要**新增**一列（例如一個新的 Agent 模式）必須包在 `- insert:` 裡，
+否則目標不存在，那一列會被**靜默跳過**，只留一行警告：
+
+    patch: entry "<你的 id>" not found
+
+```yaml
+# 新增一列（沒有 id 的 insert = 追加到最後）
+- insert:
+    - id: <新的 loader 位址>
+      name: <套件名或 file:// URL>
+      config: { ... }
+```
+
+**`- insert:` 不是 bundle 層專屬的語法**——它就是 patch 檔的通用格式，
+官方出貨的 `dsh-web-app/presets/*.patch.yml` 也是這樣寫的。
+（bundle 層之所以常見，是因為套件作者要插自己那一列。）
 
 一個 bundle 裡常常掛了很多列（例如「全家桶」型插件）。
 要看某個功能是不是 opt-in，去翻該 bundle 的 `cordis.patch.yml` 尾巴，通常有註解說明。
@@ -124,22 +160,50 @@ DSH 有官方接縫可以攔：
 （它的 `agent.cordis.yml` 裡寫著 `generated-by: dsh-tavern`）。
 看到一個目錄長得像設定，不代表系統會讀它。
 
-宣告寫在 profile 的 `cordis.patch.yml`
-（**使用者層是純 YAML 列表**；bundle 層才用 `- insert:` 形式）：
+宣告寫在 profile 的 `cordis.patch.yml`。
+**使用者層與 bundle 層用的是同一種 patch 格式**；
+「新增」一律要包在 `- insert:` 裡（純列表的列是**依 id 覆寫**，目標不存在就靜默跳過）：
 
 ```yaml
-- id: preset-<loader 位址>
-  name: '@deepseek-ai/dsh-agent-preset'
-  config:
-    id: <穩定的 preset 識別符>      # 必填，session 存的就是這個
-    plugins: []                    # 必填，子插件行列表
-    name: <展示名稱>                # 選填
-    description: <展示說明>         # 選填
-    order: <列表排序>               # 選填
+- insert:
+    - id: preset-<loader 位址>
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: <穩定的 preset 識別符>      # 必填，session 存的就是這個
+        plugins: []                    # 必填，子插件行列表
+        name: <展示名稱>                # 選填
+        description: <展示說明>         # 選填
+        order: <列表排序>               # 選填
 ```
 
 `plugins` 裡的每一項就是**普通插件列**（`id` + `name`，`name` 指向一個 JS 模組）。
 模式要掛的 agent 面模組就放在那裡。
+
+### ⭐ 子外掛的 `name` 必須是 `file://` URL
+
+這條踩過，**症狀是靜默的**：模式會出現在選擇器裡，但被標成損壞
+（`<模組> (路徑): never started`），等於「模式在，裡面是空的」。
+
+```yaml
+plugins:
+  - id: my-agent-side
+    name: 'file:///C:/Users/<你>/.dsh/agent-plugins/<模式>/agent.js'   # ✅
+#   name: 'C:\Users\<你>\.dsh\agent-plugins\<模式>\agent.js'          # ❌ 靜默失敗
+```
+
+loader 只把「以 `/` 開頭」或「`./`、`../` 開頭」的字串當成路徑；
+**Windows 反斜線的 `C:\...` 兩者都不是**，於是被當成**裸套件名**去安裝目錄解析 → 找不到。
+
+產生的方式（把反斜線換成正斜線、前面加 `file:///`）：
+
+```powershell
+'file:///' + '<絕對路徑>'.Replace('\', '/')
+```
+
+> ⚠️ **`--dump-config-schema` 顯示 `status: schema` 不代表它會跑起來。**
+> 那隻證明模組能被 import。要驗「有沒有啟動」，
+> 必須看宿主回報的 preset 清單裡那個模式**有沒有 `broken` 欄位**
+> （GUI 網路面板可見 `POST /api/agentPresets/list`）。
 
 - **內建模式**（standard／ptc／minimal／cordis）的定義來自 `dsh-web-app` bundle
 - **新增或覆蓋 preset 都是 bundle 補丁**——官方指定用 `plugin_manager` 安裝，
@@ -175,8 +239,13 @@ DSH 有官方接縫可以攔：
 
 ### 邊界
 
-- **路徑是機器專屬的絕對路徑**，preset **不可攜**（見 `sync.md`）。
-- 新增 preset 後**模式選擇器不一定立刻更新**，重新整理或重啟最保險。
+- **preset 列本身不可攜，但它可以樣板化。** 子外掛的 `name` 一定是**機器專屬的
+  `file://` 絕對路徑**；要同步就拆成「帶樣板的列」（存 repo）與
+  「本機實際路徑」（存已 gitignore 的 `machines/<host>.json`）。做法見
+  [`../sync/agent/jlcpcb/README.md`](../sync/agent/jlcpcb/README.md)。
+- **改哪個 profile 比怎麼改更容易錯**：GUI 跑 `desktop`、`dsh web` 跑 `web`，
+  兩者不繼承。改完要**重啟那個 profile 的宿主**（GUI 要整個結束再開，
+  不是重整頁面）——而且**只有 CLI 管得到的 profile 才能用 `--dump-config` 先驗**。
 - 寫模組時**不要在 template literal 裡用反引號** —— 見 `pitfalls.md`。
 - ⚠️ **有兩個不同的 `order`，不要混用**：
   - preset `config.order` → 模式在**列表裡的排序**（官方 README 有列，選填）

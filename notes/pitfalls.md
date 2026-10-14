@@ -398,3 +398,120 @@ fatal: could not read Username for 'https://github.com'
 - 這次的代價是：**錯誤的機制已經寫進 `plugins.md` 並推上公開 repo**，
   才在實測時發現。→ 所以「先查證再寫文件」不是龜毛，
   **寫錯的文件會比沒寫更糟**（下一個人會照著做）。
+
+---
+
+## 2026-10-14 — 你改的那個 profile，不是 GUI 正在跑的那個
+
+**症狀**：把模式宣告加進 `~/.dsh/profiles/web/cordis.patch.yml`（使用者層，三列，
+純列表），格式全部驗證通過、`--dump-config` 也看得到那一列。
+**但模式選擇器從頭到尾沒有它。** 重整頁面沒有、重開應用程式沒有、重開機也沒有。
+
+**當時以為**：先後誤判了三次，每一次看起來都很合理：
+
+1. 「行程還沒重啟」——因為日誌裡的心跳一直連續。
+2. 「這個檔案不會熱重載」——因為官方文件說某些入口不覆寫 profile 的 patch 層。
+3. 「**patch 層根本沒被讀取**」——因為我啟動的測試實例裡，
+   連同檔案中**既有那三列覆寫**（主題、welcome 版本）也都沒生效。
+
+**真正原因**：**GUI 跑的是 `desktop` profile，我一直在改 `web` profile。**
+`~/.dsh/profiles/` 底下同時存在兩個（或多個）profile，各自有自己的
+`package.json` 與 `cordis.patch.yml`。**它們互不相干。**
+
+三個讓誤判得以成立的因素：
+
+- **`dsh-web.log` 的檔名騙人**：那只是 `dsh web` 這個指令寫的日誌，
+  跟「哪個 profile」無關。
+- **`dsh web` 是一個寫死的別名**：它等於 `--profile web`。
+  所以 `dsh web --profile <別的>` 的那個 `--profile` 會被忽略
+  （或報 `select a profile only once`）——我以為在測 A，其實一直在測 B。
+- **`desktop` profile 被應用程式獨佔**：用 CLI 起它會直接拒絕——
+
+      error: profile "desktop" is managed exclusively by the Electron application
+
+  所以「開一個隔離實例來驗證」這條路對它**根本走不通**，只能用 GUI 本身。
+
+**怎麼驗證**：**先確認「正在跑的那個行程用的是哪個 profile」，再改檔案。**
+
+```powershell
+# ① 有哪些 profile、各自的 patch 檔多大、什麼時候被動過
+Get-ChildItem ~/.dsh/profiles -Directory | ForEach-Object {
+  $f = Join-Path $_.FullName 'cordis.patch.yml'
+  [pscustomobject]@{ profile = $_.Name; size = (Get-Item $f).Length; mtime = (Get-Item $f).LastWriteTime }
+}
+
+# ② 每個 profile 的 bundle 清單 —— 拿它跟「實際活著的外掛」對照
+Get-Content ~/.dsh/profiles/<profile>/package.json
+
+# ③ 哪個檔案裡有你正在找的那一列（找不到 = 你改錯 profile 了）
+Select-String -Path ~/.dsh/profiles/*/cordis.patch.yml -Pattern '<你的列 id>'
+
+# ④ 直接在跑著的宿主裡問（最強）：GUI 網路面板可見 POST /api/agentPresets/list
+```
+
+**學到什麼**：
+
+- **「改哪裡」比「怎麼改」更容易錯。** 語法、格式、機制全部查對了，
+  仍然可能因為**改錯檔案**而完全沒有效果——而且症狀與「機制沒生效」一模一樣。
+- **日誌檔名不是 profile 名。** 任何從「檔名／服務名／埠號」推斷身分的做法都要再驗一次。
+- **`dsh <子命令>` 可能是 `--profile <同名>` 的別名**：
+  這種情況下你**沒辦法**用那個子命令去開別的 profile。
+- **有多個 profile 時，先數清楚有幾個、各自裝了什麼**，再決定改哪一個。
+  profile 之間**不會互相繼承**。
+
+---
+
+## 2026-10-14 — 模式出現了，但子外掛 `never started`
+
+**症狀**：修正 profile 之後，模式**出現在選擇器裡了**，但它的 `broken` 欄位有值：
+
+    jlcpcb-mode-agent (C:\...\agent-plugins\jlcpcb\agent.js): never started
+
+也就是「模式在，但裡面是空的」——那段常駐系統提示**完全沒有載入**。
+
+**當時以為**：一開始懷疑兩件事，都不對：
+
+1. 子外掛依賴的服務（`systemPrompt`）在 preset 的 scope 裡拿不到。
+2. 那 1100 字的提示內容有問題（例如用了反引號之類的）。
+
+而且我手上的查證顯示這條列是「正常」的：`--dump-config-schema` 把它列成
+`status: schema`——意思是模組**導入成功**。**導入成功 ≠ 會被啟動。**
+
+**真正原因**：**子外掛的 `name` 寫成了 Windows 反斜線絕對路徑。**
+
+    ❌ name: 'C:\Users\<你>\.dsh\agent-plugins\jlcpcb\agent.js'
+    ✅ name: 'file:///C:/Users/<你>/.dsh/agent-plugins/jlcpcb/agent.js'
+
+loader 只把「以 `/` 開頭」或「`./`、`../` 開頭」的字串視為路徑；
+反斜線的 `C:\...` **不符合任何一種**，於是被當成**裸套件名**拿去安裝目錄解析
+→ 找不到 → **靜默失敗**（那一列永遠不會有 fiber）。
+
+**怎麼驗證**：用一個「什麼都不做」的假外掛做 A/B，一次只改一個變因。
+判斷依據不是畫面，是**檔案有沒有被寫出來**：
+
+```js
+// fake-agent.mjs —— 只做一件事：證明 apply() 有沒有被呼叫
+import { appendFileSync } from 'node:fs'
+const MARK = '<一個可寫的絕對路徑>\\marker.txt'
+export const name = 'jlcfake'
+export function apply(ctx) {
+  appendFileSync(MARK, 'apply called\n')
+  ctx.effect(() => {}, 'jlcfake: marker')
+}
+```
+
+    # 兩次啟動之間只改 name 的寫法（原始碼完全相同）
+    name: '<絕對路徑>\fake-agent.mjs'          → 沒有 marker（never started）
+    name: 'file:///<絕對路徑>/fake-agent.mjs'  → marker 出現，模式不再 broken
+
+**學到什麼**：
+
+- **「載入成功」與「被啟動」是兩件事。** `status: schema` 只證明模組能被 import，
+  不證明它會被掛進樹裡。**要驗到「有沒有跑起來」，不能只驗「有沒有解析成功」。**
+- **Windows 路徑在跨平台工具裡是第二級公民。** 同一個「絕對路徑」，
+  正斜線與 `file://` URL 都被接受，反斜線被當成別的東西。
+  **寫設定檔時優先用 `file://` URL**，它也是最沒有歧義的形式。
+- **診斷「誰沒跑」要用會留下痕跡的假模組**，不要靠推論。
+  那支假外掛只花幾分鐘，卻把「服務依賴」與「路徑寫法」兩個假設直接分開。
+- 這個坑跟本檔前面那條「同一個東西有兩套名字，用錯一套會靜默失敗」**是同一個家族**：
+  **靜默失敗最貴**，因為它長得跟「還沒生效」一模一樣。

@@ -10,7 +10,8 @@
 | 使用者設定 | `~/.dsh/settings.yaml` | ✅ |
 | 插件啟停 | `profiles/web/cordis.patch.yml` | ✅ |
 | 插件依賴清單 | `profiles/web/package.json` 的 deps | ⚠️ 見下節 |
-| Agent preset | `~/.dsh/.agent-presets/` | ⚠️ 常含機器路徑 |
+| Agent preset | `profiles/<profile>/cordis.patch.yml` 的 preset 列 | ✅ 列可樣板化，見下節 |
+| Agent 面模組 | `~/.dsh/agent-plugins/` | ✅ 逐字備份，例如 `sync/agent/jlcpcb/` |
 | 自動核准規則 | `auto-approve/allowlist.json` | ⚠️ 可能含機器路徑 |
 | **憑證** | `.credentials.yaml` | ❌ **絕對不行** |
 | 對話紀錄 | `sessions/` | ❌ 上百 MB ＋ 隱私 |
@@ -56,12 +57,36 @@
 ```
 sync/skills/            ← 複製 ~/.dsh/skills/ 整個目錄
 sync/settings.yaml      ← 複製 ~/.dsh/settings.yaml
-sync/plugins/rows.yml   ← 複製 ~/.dsh/profiles/web/cordis.patch.yml
+sync/plugins/rows.yml   ← 複製 <GUI 在跑的那個 profile>/cordis.patch.yml
 sync/plugins/*.json     ← 插件 URL 清單與 bundles 順序
+sync/agent/<模式>/       ← 複製 ~/.dsh/agent-plugins/<模式>/（Agent 面模組）
 ```
 
 **另一台機器**：把 `sync/` 的內容複製回 `~/.dsh/` 對應位置 → 照 `dependencies.json`
 逐個裝插件（順序照 `bundles.json`）→ 重啟 `dsh web`。
+
+## Agent 模式怎麼同步
+
+一個自製的 Agent 模式有**兩塊**，可攜性不同：
+
+| 塊 | 可攜嗎 | 放哪裡 |
+|---|---|---|
+| agent 面模組（`.js`） | ✅ 純檔案，逐字備份 | `sync/agent/<模式>/` |
+| preset 宣告列 | ⚠️ 列本身可樣板化，但子外掛的 `name` 是**機器專屬的 `file://` 絕對路徑** | 本機實際值放已 gitignore 的 `machines/<host>.json` |
+
+也就是：**列的形状進 repo，列的內容留本機。**
+範例見 [`../sync/agent/jlcpcb/README.md`](../sync/agent/jlcpcb/README.md)（嘉立創模式）。
+
+兩個**一定要記住**的細節（細節見 [`plugins.md`](plugins.md)、症狀見 [`pitfalls.md`](pitfalls.md)）：
+
+1. **列要包在 `- insert:` 裡。** 純列表的列是「依 id 覆寫」，新增不會生效。
+2. **子外掛的 `name` 用 `file:///` URL，不要用 Windows 反斜線路徑**——後者會靜默失敗。
+
+> ⚠️ **搞清楚要貼進哪個 profile。**
+> GUI（Electron 應用程式）跑的是 `desktop`，`dsh web` 跑的是 `web`，兩者**不繼承**。
+> 貼錯的那一邊，症狀是「完全沒有效果、也沒有錯誤訊息」。
+> 而 `desktop` 不接受 CLI 啟動（`managed exclusively by the Electron application`），
+> 所以它的改動**只能用 GUI 本身驗證**。
 
 ## 提交前一定要掃
 
