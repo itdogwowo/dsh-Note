@@ -13,6 +13,7 @@
 | [`instructions.md`](instructions.md) | `AGENTS.md` / 全域指示：注入時機與層級 |
 | [`plugins.md`](plugins.md) | 插件、profile、兩層啟停、怎麼判斷有沒有生效 |
 | [`ui.md`](ui.md) | GUI：輸入框的 `/` 與 `@`、側邊欄面板、工具列 |
+| [`easyeda.md`](easyeda.md) | EasyEDA Pro／嘉立創 EDA：**CLI 驅動正在開著的編輯器**、用戶端存檔會怎麼動檔案 |
 | [`sync.md`](sync.md) | 跨機器同步：什麼能同步、只存 URL 的鐵則 |
 | [`privacy.md`](privacy.md) | 公開 repo 的隱私紅線（含 `force push` 的真相） |
 | [`pitfalls.md`](pitfalls.md) | **踩過的坑**，每條有日期（append-only） |
